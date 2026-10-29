@@ -3,6 +3,7 @@ import { FormsModule } from '@angular/forms';
 
 const RISE_TIME_STORAGE_KEY = 'baby-naps.riseTime';
 const ACTIVE_INDEX_STORAGE_KEY = 'baby-naps.activeIndex';
+const ACTUAL_NAP_TIMES_STORAGE_KEY = 'baby-naps.actualNapTimes';
 
 function readStoredRiseTime(): string {
   const stored = localStorage.getItem(RISE_TIME_STORAGE_KEY);
@@ -15,6 +16,36 @@ function readStoredActiveIndex(): number {
     return 0;
   }
   return Math.min(stored, SCHEDULE_TEMPLATE.length - 1);
+}
+
+// Actual nap start/end times entered by the user, keyed by nap id. When
+// present, these override the predicted clock times for that nap and the
+// rest of the day's schedule shifts forward from them, while every awake
+// (wake window) duration stays the same as the template.
+interface NapActualTimes {
+  start?: string;
+  end?: string;
+}
+
+function readStoredActualNapTimes(): Record<string, NapActualTimes> {
+  const stored = localStorage.getItem(ACTUAL_NAP_TIMES_STORAGE_KEY);
+  if (!stored) {
+    return {};
+  }
+  try {
+    const parsed = JSON.parse(stored);
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function parseTimeToMinutes(value: string | undefined): number | null {
+  if (!value || !/^\d{2}:\d{2}$/.test(value)) {
+    return null;
+  }
+  const [hours, minutes] = value.split(':').map(Number);
+  return hours * 60 + minutes;
 }
 
 type SegmentKind = 'event' | 'nap' | 'awake';
@@ -37,6 +68,12 @@ interface ScheduleSegment extends ScheduleTemplateItem {
   endLabel: string;
   durationLabel: string;
   displayLabel: string;
+  // Only set for nap segments: the raw "HH:MM" values currently stored for
+  // this nap, used to prefill the actual-time inputs, plus whether any
+  // actual time has been entered for it.
+  actualStartTime?: string;
+  actualEndTime?: string;
+  isActual: boolean;
 }
 
 // Fixed "4 nap day" template: wake windows and nap lengths stay constant,
@@ -51,7 +88,14 @@ const SCHEDULE_TEMPLATE: ScheduleTemplateItem[] = [
   { id: 'nap3', kind: 'nap', label: 'Nap 3', icon: '💤', durationMinutes: 75 },
   { id: 'awake4', kind: 'awake', label: 'Awake', icon: '', durationMinutes: 105 },
   { id: 'nap4', kind: 'nap', label: 'Nap 4', icon: '💤', durationMinutes: 30 },
-  { id: 'awake5', kind: 'awake', label: 'Awake', icon: '', durationMinutes: 90, labelDurationMinutes: 120 },
+  {
+    id: 'awake5',
+    kind: 'awake',
+    label: 'Awake',
+    icon: '',
+    durationMinutes: 90,
+    labelDurationMinutes: 120,
+  },
   { id: 'bedtime', kind: 'event', label: 'Get ready for bed', icon: '🌙', durationMinutes: 30 },
   { id: 'asleep', kind: 'event', label: 'Asleep', icon: '🛏️', durationMinutes: 0 },
 ];
@@ -88,22 +132,49 @@ function formatDuration(totalMinutes: number): string {
 export class App {
   protected readonly riseTime = signal(readStoredRiseTime());
   protected readonly activeIndex = signal(readStoredActiveIndex());
+  protected readonly actualNapTimes = signal(readStoredActualNapTimes());
 
   constructor() {
     effect(() => localStorage.setItem(RISE_TIME_STORAGE_KEY, this.riseTime()));
     effect(() => localStorage.setItem(ACTIVE_INDEX_STORAGE_KEY, String(this.activeIndex())));
+    effect(() =>
+      localStorage.setItem(ACTUAL_NAP_TIMES_STORAGE_KEY, JSON.stringify(this.actualNapTimes())),
+    );
   }
 
   protected readonly segments = computed<ScheduleSegment[]>(() => {
     const [hours, minutes] = this.riseTime().split(':').map(Number);
     let cursor = (hours || 0) * 60 + (minutes || 0);
+    const actuals = this.actualNapTimes();
 
     return SCHEDULE_TEMPLATE.map((item) => {
-      const startMinutes = cursor;
-      const endMinutes = startMinutes + item.durationMinutes;
+      let startMinutes = cursor;
+      let endMinutes = startMinutes + item.durationMinutes;
+      let isActual = false;
+
+      const actual = item.kind === 'nap' ? actuals[item.id] : undefined;
+      const actualStart = parseTimeToMinutes(actual?.start);
+      const actualEnd = parseTimeToMinutes(actual?.end);
+
+      if (actualStart !== null) {
+        // The baby's actual nap start takes over as the new anchor; predict
+        // the end using the template's nap length unless an actual end was
+        // also logged.
+        startMinutes = actualStart;
+        endMinutes = actualEnd !== null ? actualEnd : startMinutes + item.durationMinutes;
+        isActual = true;
+      } else if (actualEnd !== null) {
+        endMinutes = actualEnd;
+        isActual = true;
+      }
+
       cursor = endMinutes;
 
-      const durationLabel = formatDuration(item.labelDurationMinutes ?? item.durationMinutes);
+      const durationLabel = formatDuration(
+        item.kind === 'nap'
+          ? endMinutes - startMinutes
+          : (item.labelDurationMinutes ?? item.durationMinutes),
+      );
       return {
         ...item,
         startMinutes,
@@ -112,6 +183,9 @@ export class App {
         endLabel: formatTime(endMinutes),
         durationLabel,
         displayLabel: item.kind === 'awake' ? `Awake ${durationLabel}` : item.label,
+        actualStartTime: actual?.start,
+        actualEndTime: actual?.end,
+        isActual,
       };
     });
   });
@@ -123,6 +197,27 @@ export class App {
 
   protected onRiseTimeChange(value: string): void {
     this.riseTime.set(value);
+  }
+
+  protected onActualNapStartChange(napId: string, value: string): void {
+    this.actualNapTimes.update((current) => ({
+      ...current,
+      [napId]: { ...current[napId], start: value || undefined },
+    }));
+  }
+
+  protected onActualNapEndChange(napId: string, value: string): void {
+    this.actualNapTimes.update((current) => ({
+      ...current,
+      [napId]: { ...current[napId], end: value || undefined },
+    }));
+  }
+
+  protected clearActualNapTimes(napId: string): void {
+    this.actualNapTimes.update((current) => {
+      const { [napId]: _removed, ...rest } = current;
+      return rest;
+    });
   }
 
   protected next(): void {

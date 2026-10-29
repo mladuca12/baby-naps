@@ -4,11 +4,7 @@
 
     <label class="rise-input">
       <span>Morning rise</span>
-      <input
-        type="time"
-        [ngModel]="riseTime()"
-        (ngModelChange)="onRiseTimeChange($event)"
-      />
+      <input type="time" [ngModel]="riseTime()" (ngModelChange)="onRiseTimeChange($event)" />
     </label>
   </header>
 
@@ -41,7 +37,9 @@
               <div class="card-title-row">
                 <span class="card-title">{{ segment.label }}</span>
                 @if (segment.kind === 'nap') {
-                  <span class="card-badge">{{ segment.durationLabel }}</span>
+                  <span class="card-badge" [class.card-badge--actual]="segment.isActual">
+                    {{ segment.durationLabel }}{{ segment.isActual ? ' · actual' : '' }}
+                  </span>
                 }
               </div>
               <span class="card-time">
@@ -54,6 +52,36 @@
             </div>
             <div class="card-icon">{{ segment.icon }}</div>
           </button>
+
+          @if (segment.kind === 'nap') {
+            <div class="nap-actuals">
+              <label>
+                <span>Actual start</span>
+                <input
+                  type="time"
+                  [ngModel]="segment.actualStartTime ?? ''"
+                  (ngModelChange)="onActualNapStartChange(segment.id, $event)"
+                />
+              </label>
+              <label>
+                <span>Actual end</span>
+                <input
+                  type="time"
+                  [ngModel]="segment.actualEndTime ?? ''"
+                  (ngModelChange)="onActualNapEndChange(segment.id, $event)"
+                />
+              </label>
+              @if (segment.isActual) {
+                <button
+                  type="button"
+                  class="nap-actuals-clear"
+                  (click)="clearActualNapTimes(segment.id)"
+                >
+                  Clear
+                </button>
+              }
+            </div>
+          }
         }
       </li>
     }
