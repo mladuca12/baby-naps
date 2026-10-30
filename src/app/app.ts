@@ -230,6 +230,7 @@ export class App {
 
   protected reset(): void {
     this.activeIndex.set(0);
+    this.actualNapTimes.set({});
   }
 
   protected jumpTo(index: number): void {
