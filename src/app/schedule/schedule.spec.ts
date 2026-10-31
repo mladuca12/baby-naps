@@ -5,12 +5,18 @@ import { Schedule } from './schedule';
 
 describe('Schedule', () => {
   beforeEach(async () => {
+    // Pin the clock (and the interval that ticks it) so naps in progress have
+    // a predictable length; Angular's own scheduling keeps using real timers.
+    vi.useFakeTimers({ toFake: ['Date', 'setInterval', 'clearInterval'] });
+    vi.setSystemTime(new Date(2026, 9, 31, 12, 7));
     localStorage.clear();
     await TestBed.configureTestingModule({
       imports: [Schedule],
       providers: [provideRouter([])],
     }).compileComponents();
   });
+
+  afterEach(() => vi.useRealTimers());
 
   async function render() {
     const fixture = TestBed.createComponent(Schedule);
@@ -80,7 +86,7 @@ describe('Schedule', () => {
     ]);
   });
 
-  it('shows the actual nap length next to the planned length once the nap has ended', async () => {
+  it('shows the actual nap length next to the planned length', async () => {
     const { fixture, element } = await render();
     const napBadges = () =>
       [...element.querySelectorAll('.card--nap')].map((card) =>
@@ -103,10 +109,37 @@ describe('Schedule', () => {
 
     expect(napBadges()).toEqual([
       ['1hr 30m', '1hr 15m actual'],
-      // Still asleep: the actual length isn't known until the end is logged.
-      ['2hrs'],
+      // Still asleep at 12:07pm, so this is a running timer.
+      ['2hrs', '22m 0s actual'],
       ['45m', '38m actual'],
     ]);
+  });
+
+  it('shows a running timer while a nap is going and drops the seconds once it ends', async () => {
+    vi.setSystemTime(new Date(2026, 9, 31, 11, 40));
+    localStorage.setItem('baby-naps.actualNapTimes', JSON.stringify({ nap2: { start: '11:45' } }));
+    const { fixture, element } = await render();
+    const nap2Badges = () =>
+      [...element.querySelectorAll('.card--nap')[1].querySelectorAll('.card-badge')].map(text);
+    expect(nap2Badges()).toEqual(['2hrs']);
+
+    vi.advanceTimersByTime((5 * 60 + 34) * 1000);
+    await fixture.whenStable();
+    expect(nap2Badges()).toEqual(['2hrs', '34s actual']);
+
+    vi.advanceTimersByTime(72 * 60_000);
+    await fixture.whenStable();
+    expect(nap2Badges()).toEqual(['2hrs', '1hr 12m 34s actual']);
+
+    vi.advanceTimersByTime(1000);
+    await fixture.whenStable();
+    expect(nap2Badges()).toEqual(['2hrs', '1hr 12m 35s actual']);
+
+    const nap2End = element.querySelectorAll<HTMLInputElement>('.nap-actuals input')[3];
+    nap2End.value = '12:58';
+    nap2End.dispatchEvent(new Event('input'));
+    await fixture.whenStable();
+    expect(nap2Badges()).toEqual(['2hrs', '1hr 13m actual']);
   });
 
   it('keeps the current step within the day when naps are removed', async () => {

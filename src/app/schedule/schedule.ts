@@ -1,8 +1,16 @@
-import { Component, computed, effect, inject, linkedSignal, signal } from '@angular/core';
+import {
+  Component,
+  computed,
+  DestroyRef,
+  effect,
+  inject,
+  linkedSignal,
+  signal,
+} from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { NgIcon } from '@ng-icons/core';
-import { formatDuration } from '../format-duration';
+import { formatDuration, formatElapsed } from '../format-duration';
 import { icons } from '../icons';
 import { ScheduleConfig, ScheduleSettings } from '../schedule-settings';
 
@@ -50,6 +58,11 @@ function parseTimeToMinutes(value: string | undefined): number | null {
   return hours * 60 + minutes;
 }
 
+function currentTimeInSeconds(): number {
+  const now = new Date();
+  return now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+}
+
 type SegmentKind = 'event' | 'nap' | 'awake';
 
 interface ScheduleTemplateItem {
@@ -76,8 +89,9 @@ interface ScheduleSegment extends ScheduleTemplateItem {
   actualStartTime?: string;
   actualEndTime?: string;
   isActual: boolean;
-  // How long the nap actually lasted, shown next to its planned length; only
-  // known once the nap's actual end has been logged.
+  // How long the nap actually lasted, shown next to its planned length. While
+  // the nap is still going (start logged, no end yet) it's a running timer
+  // with seconds; the seconds are dropped once the end is logged.
   actualDurationLabel?: string;
 }
 
@@ -153,6 +167,10 @@ export class Schedule {
       Math.min(previous?.value ?? readStoredActiveIndex(), length - 1),
   });
   protected readonly actualNapTimes = signal(readStoredActualNapTimes());
+  // Time of day in whole seconds, so a nap in progress can show a running
+  // timer. It's checked a few times a second (a 1s interval drifts and can
+  // skip a second) but only changes when the second does.
+  private readonly nowSeconds = signal(currentTimeInSeconds());
 
   constructor() {
     effect(() => localStorage.setItem(RISE_TIME_STORAGE_KEY, this.riseTime()));
@@ -160,6 +178,9 @@ export class Schedule {
     effect(() =>
       localStorage.setItem(ACTUAL_NAP_TIMES_STORAGE_KEY, JSON.stringify(this.actualNapTimes())),
     );
+
+    const clock = setInterval(() => this.nowSeconds.set(currentTimeInSeconds()), 250);
+    inject(DestroyRef).onDestroy(() => clearInterval(clock));
   }
 
   protected readonly segments = computed<ScheduleSegment[]>(() => {
@@ -190,6 +211,14 @@ export class Schedule {
 
       cursor = endMinutes;
 
+      let actualDurationLabel: string | undefined;
+      if (actualEnd !== null) {
+        actualDurationLabel = formatDuration(endMinutes - startMinutes);
+      } else if (actualStart !== null && this.nowSeconds() >= actualStart * 60) {
+        // Still asleep: a running timer from the actual start.
+        actualDurationLabel = formatElapsed(this.nowSeconds() - actualStart * 60);
+      }
+
       const durationLabel = formatDuration(item.labelDurationMinutes ?? item.durationMinutes);
       return {
         ...item,
@@ -202,8 +231,7 @@ export class Schedule {
         actualStartTime: actual?.start,
         actualEndTime: actual?.end,
         isActual,
-        actualDurationLabel:
-          actualEnd !== null ? formatDuration(endMinutes - startMinutes) : undefined,
+        actualDurationLabel,
       };
     });
   });

@@ -10,3 +10,10 @@ export function formatDuration(totalMinutes: number): string {
   }
   return parts.length > 0 ? parts.join(' ') : '0m';
 }
+
+// A running timer in the same style, with seconds, e.g. "1hr 12m 34s".
+export function formatElapsed(totalSeconds: number): string {
+  const seconds = totalSeconds % 60;
+  const totalMinutes = Math.floor(totalSeconds / 60);
+  return totalMinutes > 0 ? `${formatDuration(totalMinutes)} ${seconds}s` : `${seconds}s`;
+}
