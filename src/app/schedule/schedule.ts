@@ -1,7 +1,9 @@
 import { Component, computed, effect, inject, linkedSignal, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
+import { NgIcon } from '@ng-icons/core';
 import { formatDuration } from '../format-duration';
+import { icons } from '../icons';
 import { ScheduleConfig, ScheduleSettings } from '../schedule-settings';
 
 const RISE_TIME_STORAGE_KEY = 'baby-naps.riseTime';
@@ -74,6 +76,9 @@ interface ScheduleSegment extends ScheduleTemplateItem {
   actualStartTime?: string;
   actualEndTime?: string;
   isActual: boolean;
+  // How long the nap actually lasted, shown next to its planned length; only
+  // known once the nap's actual end has been logged.
+  actualDurationLabel?: string;
 }
 
 // Builds the day from the configured naps and wake windows; these stay
@@ -83,7 +88,7 @@ function buildScheduleTemplate({
   awakeBeforeBedMinutes,
 }: ScheduleConfig): ScheduleTemplateItem[] {
   return [
-    { id: 'rise', kind: 'event', label: 'Morning rise', icon: '☀️', durationMinutes: 0 },
+    { id: 'rise', kind: 'event', label: 'Morning rise', icon: icons.rise, durationMinutes: 0 },
     ...naps.flatMap((nap, i): ScheduleTemplateItem[] => [
       {
         id: `awake${i + 1}`,
@@ -96,7 +101,7 @@ function buildScheduleTemplate({
         id: `nap${i + 1}`,
         kind: 'nap',
         label: `Nap ${i + 1}`,
-        icon: '💤',
+        icon: icons.nap,
         durationMinutes: nap.durationMinutes,
       },
     ]),
@@ -107,8 +112,14 @@ function buildScheduleTemplate({
       icon: '',
       durationMinutes: awakeBeforeBedMinutes,
     },
-    { id: 'bedtime', kind: 'event', label: 'Get ready for bed', icon: '🌙', durationMinutes: 30 },
-    { id: 'asleep', kind: 'event', label: 'Asleep', icon: '🛏️', durationMinutes: 0 },
+    {
+      id: 'bedtime',
+      kind: 'event',
+      label: 'Get ready for bed',
+      icon: icons.bedtime,
+      durationMinutes: 30,
+    },
+    { id: 'asleep', kind: 'event', label: 'Asleep', icon: icons.asleep, durationMinutes: 0 },
   ];
 }
 
@@ -123,12 +134,13 @@ function formatTime(totalMinutesRaw: number): string {
 }
 
 @Component({
-  imports: [FormsModule, RouterLink],
+  imports: [FormsModule, RouterLink, NgIcon],
   selector: 'app-schedule',
   styleUrl: './schedule.scss',
   templateUrl: './schedule.html',
 })
 export class Schedule {
+  protected readonly icons = icons;
   private readonly scheduleConfig = inject(ScheduleSettings).config;
   private readonly template = computed(() => buildScheduleTemplate(this.scheduleConfig()));
   protected readonly napCount = computed(() => this.scheduleConfig().naps.length);
@@ -178,11 +190,7 @@ export class Schedule {
 
       cursor = endMinutes;
 
-      const durationLabel = formatDuration(
-        item.kind === 'nap'
-          ? endMinutes - startMinutes
-          : (item.labelDurationMinutes ?? item.durationMinutes),
-      );
+      const durationLabel = formatDuration(item.labelDurationMinutes ?? item.durationMinutes);
       return {
         ...item,
         startMinutes,
@@ -194,6 +202,8 @@ export class Schedule {
         actualStartTime: actual?.start,
         actualEndTime: actual?.end,
         isActual,
+        actualDurationLabel:
+          actualEnd !== null ? formatDuration(endMinutes - startMinutes) : undefined,
       };
     });
   });

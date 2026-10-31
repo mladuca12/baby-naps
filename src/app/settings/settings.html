@@ -27,7 +27,7 @@
   </section>
 
   <ol class="timeline">
-    <li class="marker"><span aria-hidden="true">☀️</span> Morning rise</li>
+    <li class="marker"><ng-icon [svg]="icons.rise" /> Morning rise</li>
 
     @for (nap of config().naps; track $index; let i = $index) {
       <li class="row row--awake">
@@ -54,7 +54,7 @@
       <li class="row row--nap">
         <label>
           <span class="row-text">
-            <span class="row-label"><span aria-hidden="true">💤</span> Nap {{ i + 1 }}</span>
+            <span class="row-label"><ng-icon [svg]="icons.nap" /> Nap {{ i + 1 }}</span>
             <span class="row-hint">{{ formatDuration(nap.durationMinutes) }}</span>
           </span>
           <input
@@ -94,7 +94,7 @@
       </label>
     </li>
 
-    <li class="marker"><span aria-hidden="true">🌙</span> Get ready for bed</li>
+    <li class="marker"><ng-icon [svg]="icons.bedtime" /> Get ready for bed</li>
   </ol>
 
   <button type="button" class="restore-defaults" (click)="settings.restoreDefaults()">

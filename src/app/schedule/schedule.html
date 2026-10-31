@@ -12,8 +12,9 @@
       routerLink="/settings"
       aria-label="Schedule settings"
       title="Schedule settings"
-      >⚙️</a
     >
+      <ng-icon [svg]="icons.settings" />
+    </a>
   </header>
 
   <div class="now-banner">
@@ -31,7 +32,7 @@
             [class.active]="i === activeIndex()"
             (click)="jumpTo(i)"
           >
-            {{ segment.displayLabel }}
+            {{ segment.displayLabel }} ({{ segment.startLabel }} - {{ segment.endLabel }})
           </button>
         } @else {
           <button
@@ -45,9 +46,12 @@
               <div class="card-title-row">
                 <span class="card-title">{{ segment.label }}</span>
                 @if (segment.kind === 'nap') {
-                  <span class="card-badge" [class.card-badge--actual]="segment.isActual">
-                    {{ segment.durationLabel }}{{ segment.isActual ? ' · actual' : '' }}
-                  </span>
+                  <span class="card-badge">{{ segment.durationLabel }}</span>
+                  @if (segment.actualDurationLabel) {
+                    <span class="card-badge card-badge--actual">
+                      {{ segment.actualDurationLabel }} actual
+                    </span>
+                  }
                 }
               </div>
               <span class="card-time">
@@ -58,7 +62,7 @@
                 }
               </span>
             </div>
-            <div class="card-icon">{{ segment.icon }}</div>
+            <div class="card-icon"><ng-icon [svg]="segment.icon" /></div>
           </button>
 
           @if (segment.kind === 'nap') {

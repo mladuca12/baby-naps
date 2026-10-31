@@ -1,6 +1,8 @@
 import { Component, computed, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { NgIcon } from '@ng-icons/core';
 import { formatDuration } from '../format-duration';
+import { icons } from '../icons';
 import {
   MAX_DURATION_MINUTES,
   MAX_NAPS,
@@ -10,12 +12,13 @@ import {
 } from '../schedule-settings';
 
 @Component({
-  imports: [RouterLink],
+  imports: [RouterLink, NgIcon],
   selector: 'app-settings',
   styleUrl: './settings.scss',
   templateUrl: './settings.html',
 })
 export class Settings {
+  protected readonly icons = icons;
   protected readonly settings = inject(ScheduleSettings);
   protected readonly config = this.settings.config;
   protected readonly napCount = computed(() => this.config().naps.length);

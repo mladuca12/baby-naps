@@ -35,7 +35,7 @@ describe('Settings', () => {
 
   it('shows the wake window and length of every nap, then the wake window before bed', () => {
     expect(element.querySelector('.stepper-value')?.textContent?.trim()).toBe('3');
-    expect(napLabels()).toEqual(['💤 Nap 1', '💤 Nap 2', '💤 Nap 3']);
+    expect(napLabels()).toEqual(['Nap 1', 'Nap 2', 'Nap 3']);
     expect(minuteInputs().map((input) => input.value)).toEqual([
       '75',
       '90',
@@ -69,7 +69,7 @@ describe('Settings', () => {
     remove.click();
     remove.click();
     await fixture.whenStable();
-    expect(napLabels()).toEqual(['💤 Nap 1']);
+    expect(napLabels()).toEqual(['Nap 1']);
     expect(settings.config().naps).toHaveLength(1);
     expect(remove.disabled).toBe(true);
     expect(add.disabled).toBe(false);
@@ -124,5 +124,11 @@ describe('Settings', () => {
 
   it('links back to the schedule', () => {
     expect(element.querySelector('a.btn-primary')?.getAttribute('href')).toBe('/');
+  });
+
+  it('uses icons instead of emoji', () => {
+    expect(element.textContent).not.toMatch(/\p{Extended_Pictographic}/u);
+    expect(element.querySelectorAll('.marker ng-icon svg')).toHaveLength(2);
+    expect(element.querySelectorAll('.row--nap .row-label ng-icon svg')).toHaveLength(3);
   });
 });

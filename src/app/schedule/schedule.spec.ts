@@ -58,9 +58,54 @@ describe('Schedule', () => {
       ['Asleep', '1:30pm'],
     ]);
     expect([...element.querySelectorAll('.awake-caption')].map(text)).toEqual([
-      'Awake 1hr',
-      'Awake 1hr 30m',
-      'Awake 2hrs',
+      'Awake 1hr (7:00am - 8:00am)',
+      'Awake 1hr 30m (8:30am - 10:00am)',
+      'Awake 2hrs (11:00am - 1:00pm)',
+    ]);
+  });
+
+  it('starts each wake window when the previous nap actually ended', async () => {
+    localStorage.setItem(
+      'baby-naps.actualNapTimes',
+      JSON.stringify({ nap1: { start: '08:30', end: '09:30' } }),
+    );
+
+    const { element } = await render();
+
+    expect([...element.querySelectorAll('.awake-caption')].map(text)).toEqual([
+      'Awake 1hr 15m (7:00am - 8:15am)',
+      'Awake 1hr 45m (9:30am - 11:15am)',
+      'Awake 2hrs (1:15pm - 3:15pm)',
+      'Awake 2hrs 15m (4:00pm - 6:15pm)',
+    ]);
+  });
+
+  it('shows the actual nap length next to the planned length once the nap has ended', async () => {
+    const { fixture, element } = await render();
+    const napBadges = () =>
+      [...element.querySelectorAll('.card--nap')].map((card) =>
+        [...card.querySelectorAll('.card-badge')].map(text),
+      );
+    expect(napBadges()).toEqual([['1hr 30m'], ['2hrs'], ['45m']]);
+
+    const [, nap1End, nap2Start, , nap3Start, nap3End] =
+      element.querySelectorAll<HTMLInputElement>('.nap-actuals input');
+    for (const [input, value] of [
+      [nap1End, '09:30'],
+      [nap2Start, '11:45'],
+      [nap3Start, '15:50'],
+      [nap3End, '16:28'],
+    ] as const) {
+      input.value = value;
+      input.dispatchEvent(new Event('input'));
+    }
+    await fixture.whenStable();
+
+    expect(napBadges()).toEqual([
+      ['1hr 30m', '1hr 15m actual'],
+      // Still asleep: the actual length isn't known until the end is logged.
+      ['2hrs'],
+      ['45m', '38m actual'],
     ]);
   });
 
@@ -79,5 +124,17 @@ describe('Schedule', () => {
   it('links to the settings page', async () => {
     const { element } = await render();
     expect(element.querySelector('a.settings-link')?.getAttribute('href')).toBe('/settings');
+  });
+
+  it('uses icons instead of emoji', async () => {
+    const { element } = await render();
+
+    expect(element.textContent).not.toMatch(/\p{Extended_Pictographic}/u);
+    expect(element.querySelector('.settings-link ng-icon svg')).not.toBeNull();
+    const cards = [...element.querySelectorAll('.card')];
+    expect(cards).toHaveLength(6);
+    for (const card of cards) {
+      expect(card.querySelector('.card-icon ng-icon svg')).not.toBeNull();
+    }
   });
 });
