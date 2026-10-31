@@ -1,0 +1,107 @@
+<main class="page">
+  <header class="header">
+    <h1>Schedule settings</h1>
+  </header>
+
+  <section class="nap-count">
+    <span id="nap-count-label">Naps per day</span>
+    <div class="stepper" role="group" aria-labelledby="nap-count-label">
+      <button
+        type="button"
+        aria-label="Remove a nap"
+        [disabled]="napCount() <= minNaps"
+        (click)="settings.setNapCount(napCount() - 1)"
+      >
+        −
+      </button>
+      <output class="stepper-value" aria-live="polite">{{ napCount() }}</output>
+      <button
+        type="button"
+        aria-label="Add a nap"
+        [disabled]="napCount() >= maxNaps"
+        (click)="settings.setNapCount(napCount() + 1)"
+      >
+        +
+      </button>
+    </div>
+  </section>
+
+  <ol class="timeline">
+    <li class="marker"><span aria-hidden="true">☀️</span> Morning rise</li>
+
+    @for (nap of config().naps; track $index; let i = $index) {
+      <li class="row row--awake">
+        <label>
+          <span class="row-text">
+            <span class="row-label">Awake</span>
+            <span class="row-hint">{{ formatDuration(nap.awakeBeforeMinutes) }}</span>
+          </span>
+          <input
+            #awakeInput
+            type="number"
+            inputmode="numeric"
+            required
+            [min]="minMinutes"
+            [max]="maxMinutes"
+            [value]="nap.awakeBeforeMinutes"
+            (input)="settings.updateNap(i, { awakeBeforeMinutes: awakeInput.valueAsNumber })"
+            (blur)="resetInput(awakeInput, nap.awakeBeforeMinutes)"
+          />
+          <span class="row-unit">min</span>
+        </label>
+      </li>
+
+      <li class="row row--nap">
+        <label>
+          <span class="row-text">
+            <span class="row-label"><span aria-hidden="true">💤</span> Nap {{ i + 1 }}</span>
+            <span class="row-hint">{{ formatDuration(nap.durationMinutes) }}</span>
+          </span>
+          <input
+            #napInput
+            type="number"
+            inputmode="numeric"
+            required
+            [min]="minMinutes"
+            [max]="maxMinutes"
+            [value]="nap.durationMinutes"
+            (input)="settings.updateNap(i, { durationMinutes: napInput.valueAsNumber })"
+            (blur)="resetInput(napInput, nap.durationMinutes)"
+          />
+          <span class="row-unit">min</span>
+        </label>
+      </li>
+    }
+
+    <li class="row row--awake">
+      <label>
+        <span class="row-text">
+          <span class="row-label">Awake</span>
+          <span class="row-hint">{{ formatDuration(config().awakeBeforeBedMinutes) }}</span>
+        </span>
+        <input
+          #bedInput
+          type="number"
+          inputmode="numeric"
+          required
+          [min]="minMinutes"
+          [max]="maxMinutes"
+          [value]="config().awakeBeforeBedMinutes"
+          (input)="settings.setAwakeBeforeBed(bedInput.valueAsNumber)"
+          (blur)="resetInput(bedInput, config().awakeBeforeBedMinutes)"
+        />
+        <span class="row-unit">min</span>
+      </label>
+    </li>
+
+    <li class="marker"><span aria-hidden="true">🌙</span> Get ready for bed</li>
+  </ol>
+
+  <button type="button" class="restore-defaults" (click)="settings.restoreDefaults()">
+    Restore defaults
+  </button>
+
+  <footer class="controls">
+    <a class="btn btn-primary" routerLink="/">Done</a>
+  </footer>
+</main>

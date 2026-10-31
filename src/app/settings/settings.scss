@@ -1,0 +1,132 @@
+.header h1 {
+  margin: 0;
+  font-size: 1.5rem;
+  color: #103c46;
+}
+
+.nap-count {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #fff;
+  padding: 0.75rem 1rem;
+  border-radius: 1rem;
+  font-weight: 600;
+  color: #103c46;
+}
+
+.stepper {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+
+  button {
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: 50%;
+    border: none;
+    background: #ff8a3d;
+    color: #fff;
+    font-size: 1.25rem;
+    line-height: 1;
+    cursor: pointer;
+
+    &:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+  }
+
+  &-value {
+    min-width: 1.5rem;
+    text-align: center;
+    font-size: 1.25rem;
+  }
+}
+
+.timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.marker {
+  padding: 0.4rem 0;
+  font-weight: 600;
+  color: #103c46;
+}
+
+.row {
+  label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  &--nap {
+    padding: 0.75rem 1.1rem;
+    border-radius: 1rem;
+    background: linear-gradient(90deg, #dff3f5 0%, #bfe6ea 100%);
+  }
+
+  &--awake {
+    padding: 0.4rem 1.1rem;
+    font-style: italic;
+  }
+
+  &-text {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
+
+  &-label {
+    color: #103c46;
+  }
+
+  &--nap &-label {
+    font-weight: 700;
+    font-size: 1.05rem;
+  }
+
+  &-hint {
+    font-size: 0.75rem;
+    font-style: normal;
+    color: #4a6b72;
+  }
+
+  &-unit {
+    font-size: 0.85rem;
+    font-style: normal;
+    color: #4a6b72;
+  }
+
+  input {
+    width: 4.5rem;
+    font-size: 1rem;
+    text-align: right;
+    padding: 0.35rem 0.5rem;
+    border-radius: 0.5rem;
+    border: 1px solid #cfe3e6;
+    background: #fff;
+    box-sizing: border-box;
+
+    &:invalid {
+      border-color: #e5484d;
+      outline-color: #e5484d;
+    }
+  }
+}
+
+.restore-defaults {
+  align-self: center;
+  border: none;
+  background: none;
+  color: #4a6b72;
+  font-size: 0.85rem;
+  text-decoration: underline;
+  cursor: pointer;
+}
